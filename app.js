@@ -3,7 +3,7 @@
    ============================================================ */
 
 // ============ CONFIGURATION ============
-const API_URL = "https://script.google.com/macros/s/AKfycbwWmSwx2WFFm6CKH9ey5sfuU45d_dwCcuapIh1byavHA0uZBQavhGLWybzmpHi4wc8L/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzq9efI7BxEsDTAseAJoxTUNhouFsKdGKTXkPB78wF1lm5SGM1uXeZ-I2qXP7Nrprm8/exec";
 const API_TOKEN = "gj7K2mP9xQ4vL8nR3wT6yH1bN5cF0dS2aE7uJ9iZ4kM8pX3qV6";
 
 // ============ ÉTAT GLOBAL ============
