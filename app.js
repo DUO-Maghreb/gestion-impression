@@ -8,7 +8,6 @@ const API_TOKEN = "gj7K2mP9xQ4vL8nR3wT6yH1bN5cF0dS2aE7uJ9iZ4kM8pX3qV6";
 
 // ============ ÉTAT GLOBAL ============
 let DATA = { jobs: [], stock: [], kpi: {}, parametres: { tissus: [], etats: [] } };
-let OCR_EN_COURS = null;
 let PROGRESSION_TIMER = null;
 
 // ============ AUTHENTIFICATION ADMIN ============
@@ -243,7 +242,7 @@ async function ajouterStock() {
   }
 }
 
-// ============ OCR + PROGRESSION ============
+// ============ PROGRESSION ============
 function demarrerProgression() {
   const etapes = [
     { pct: 10, msg: "📤 Envoi du fichier...", detail: "Transfert en cours" },
@@ -279,6 +278,7 @@ function arreterProgression() {
   mettreAJourProgression(100, "✅ Terminé !", "");
 }
 
+// ============ SCAN + UPLOAD ============
 function scannerBAT() {
   document.getElementById("input-fichier").click();
 }
@@ -308,18 +308,154 @@ async function traiterFichier(file) {
       return;
     }
 
-    const data = Array.isArray(res.data) ? res.data[0] : res.data;
-    OCR_EN_COURS = data;
-    afficherModaleOCR(data);
+    // Normaliser en tableau
+    let jobs = Array.isArray(res.data) ? res.data : [res.data];
+    
+    if (jobs.length === 0) {
+      alert("Aucun job détecté dans le fichier.");
+      return;
+    }
+    
+    // Masquer l'overlay AVANT d'afficher les modales
+    afficherLoading(false);
+    
+    // Traiter les jobs un par un
+    await traiterJobsEnBoucle(jobs);
+    
   } catch (err) {
     arreterProgression();
     alert("Erreur : " + err.message);
   } finally {
-    setTimeout(() => {
-      afficherLoading(false);
-      btnScanner.disabled = false;
-    }, 600);
+    afficherLoading(false);
+    btnScanner.disabled = false;
   }
+}
+
+/**
+ * Traite une liste de jobs un par un.
+ * Affiche une modale pour chaque job, attend la validation, puis passe au suivant.
+ */
+async function traiterJobsEnBoucle(jobs) {
+  let nbValides = 0;
+  let nbAnnules = 0;
+  
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    job._progression = { actuel: i + 1, total: jobs.length };
+    
+    const valide = await afficherModaleOCRAsync(job);
+    
+    if (valide) {
+      nbValides++;
+    } else {
+      nbAnnules++;
+      if (nbAnnules > 0 && i < jobs.length - 1) {
+        if (!confirm("Voulez-vous continuer avec les jobs restants ?")) {
+          break;
+        }
+      }
+    }
+  }
+  
+  // Rafraîchir le dashboard
+  chargerDashboard();
+  
+  // Message final
+  if (jobs.length > 1) {
+    setTimeout(() => {
+      alert("✅ Traitement terminé !\n" + nbValides + " job(s) validé(s), " + nbAnnules + " annulé(s).");
+    }, 500);
+  }
+}
+
+/**
+ * Affiche la modale OCR en mode "promesse".
+ * Résout `true` si le job est validé, `false` si annulé.
+ */
+function afficherModaleOCRAsync(data) {
+  return new Promise((resolve) => {
+    // Remplir la modale
+    document.getElementById("ocr-client").value = data.client || "";
+    document.getElementById("ocr-job").value = data.jobRef || "";
+    document.getElementById("ocr-date").value = data.dateReception || "";
+    document.getElementById("ocr-largeur").value = data.largeur || 0;
+    document.getElementById("ocr-hauteur").value = data.hauteur || 0;
+    document.getElementById("ocr-quantite").value = data.quantite || 1;
+    document.getElementById("ocr-commentaire").value = data.designation || "";
+    
+    // Sélectionner le tissu
+    const selTissu = document.getElementById("ocr-tissu");
+    const tissuExtrait = (data.tissu || "").toLowerCase();
+    for (let i = 0; i < selTissu.options.length; i++) {
+      if (selTissu.options[i].value.toLowerCase() === tissuExtrait) {
+        selTissu.selectedIndex = i;
+        break;
+      }
+    }
+    
+    // Modifier le titre pour indiquer la progression
+    const titre = document.querySelector("#modale-ocr h2");
+    if (data._progression && data._progression.total > 1) {
+      titre.textContent = "📄 Valider le job (" + data._progression.actuel + " / " + data._progression.total + ")";
+    } else {
+      titre.textContent = "📄 Valider le BAT";
+    }
+    
+    // Afficher la modale
+    document.getElementById("modale-ocr").style.display = "flex";
+    
+    // Boutons
+    const btnValider = document.getElementById("btn-valider-ocr");
+    const btnAnnuler = document.getElementById("btn-annuler-ocr");
+    const btnFermer = document.getElementById("btn-fermer-modale");
+    
+    // Nettoyer les anciens handlers (au cas où)
+    btnValider.replaceWith(btnValider.cloneNode(true));
+    btnAnnuler.replaceWith(btnAnnuler.cloneNode(true));
+    btnFermer.replaceWith(btnFermer.cloneNode(true));
+    
+    // Récupérer les nouveaux éléments
+    const newBtnValider = document.getElementById("btn-valider-ocr");
+    const newBtnAnnuler = document.getElementById("btn-annuler-ocr");
+    const newBtnFermer = document.getElementById("btn-fermer-modale");
+    
+    // Action Valider
+    newBtnValider.onclick = async () => {
+      const payload = {
+        dateReception: document.getElementById("ocr-date").value,
+        client: document.getElementById("ocr-client").value,
+        jobRef: document.getElementById("ocr-job").value,
+        largeur: parseFloat(document.getElementById("ocr-largeur").value) || 0,
+        hauteur: parseFloat(document.getElementById("ocr-hauteur").value) || 0,
+        quantite: parseInt(document.getElementById("ocr-quantite").value) || 0,
+        tissu: document.getElementById("ocr-tissu").value,
+        commentaire: document.getElementById("ocr-commentaire").value,
+        utilisateur: "Admin"
+      };
+      
+      afficherLoading(true, "💾 Enregistrement du job...");
+      const res = await apiPost("validateJob", payload);
+      afficherLoading(false);
+      
+      if (res.success) {
+        document.getElementById("modale-ocr").style.display = "none";
+        resolve(true);
+      } else {
+        alert("Erreur : " + (res.error || "inconnue"));
+      }
+    };
+    
+    // Action Annuler
+    newBtnAnnuler.onclick = () => {
+      document.getElementById("modale-ocr").style.display = "none";
+      resolve(false);
+    };
+    
+    newBtnFermer.onclick = () => {
+      document.getElementById("modale-ocr").style.display = "none";
+      resolve(false);
+    };
+  });
 }
 
 function fileToBase64(file) {
@@ -334,52 +470,6 @@ function fileToBase64(file) {
   });
 }
 
-function afficherModaleOCR(data) {
-  document.getElementById("ocr-client").value = data.client || "";
-  document.getElementById("ocr-job").value = data.jobRef || "";
-  document.getElementById("ocr-date").value = data.dateReception || "";
-  document.getElementById("ocr-largeur").value = data.largeur || 0;
-  document.getElementById("ocr-hauteur").value = data.hauteur || 0;
-  document.getElementById("ocr-quantite").value = data.quantite || 1;
-  document.getElementById("ocr-commentaire").value = "";
-
-  const selTissu = document.getElementById("ocr-tissu");
-  const tissuExtrait = (data.tissu || "").toLowerCase();
-  for (let i = 0; i < selTissu.options.length; i++) {
-    if (selTissu.options[i].value.toLowerCase() === tissuExtrait) {
-      selTissu.selectedIndex = i;
-      break;
-    }
-  }
-
-  document.getElementById("modale-ocr").style.display = "flex";
-}
-
-async function validerOCR() {
-  const payload = {
-    dateReception: document.getElementById("ocr-date").value,
-    client: document.getElementById("ocr-client").value,
-    jobRef: document.getElementById("ocr-job").value,
-    largeur: parseFloat(document.getElementById("ocr-largeur").value) || 0,
-    hauteur: parseFloat(document.getElementById("ocr-hauteur").value) || 0,
-    quantite: parseInt(document.getElementById("ocr-quantite").value) || 0,
-    tissu: document.getElementById("ocr-tissu").value,
-    commentaire: document.getElementById("ocr-commentaire").value,
-    utilisateur: "Admin"
-  };
-
-  afficherLoading(true, "💾 Enregistrement du job...");
-  const res = await apiPost("validateJob", payload);
-  afficherLoading(false);
-
-  if (res.success) {
-    document.getElementById("modale-ocr").style.display = "none";
-    chargerDashboard();
-  } else {
-    alert("Erreur : " + (res.error || "inconnue"));
-  }
-}
-
 // ============ DRAG & DROP ============
 function initialiserDragDrop() {
   const dropZone = document.getElementById("drop-zone");
@@ -387,25 +477,21 @@ function initialiserDragDrop() {
   const inputFichier = document.getElementById("input-fichier");
   const btnScanner = document.getElementById("btn-scanner");
 
-  // Clic sur le bouton → ouvre le sélecteur
   btnScanner.addEventListener("click", (e) => {
     e.stopPropagation();
     scannerBAT();
   });
 
-  // Clic sur la zone → ouvre le sélecteur
   dropZone.addEventListener("click", () => {
     inputFichier.click();
   });
 
-  // Sélection de fichier via input
   inputFichier.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (file) traiterFichier(file);
     e.target.value = "";
   });
 
-  // Empêcher le comportement par défaut du navigateur
   ["dragenter", "dragover", "dragleave", "drop"].forEach(eventName => {
     document.body.addEventListener(eventName, (e) => {
       e.preventDefault();
@@ -413,7 +499,6 @@ function initialiserDragDrop() {
     });
   });
 
-  // Drag enter sur la zone
   dropZone.addEventListener("dragenter", (e) => {
     e.preventDefault();
     zoneScan.classList.add("dragover");
@@ -439,7 +524,6 @@ function initialiserDragDrop() {
 
     const file = e.dataTransfer.files[0];
     if (file) {
-      // Vérifier le type
       if (file.type === "application/pdf" || file.type.startsWith("image/")) {
         traiterFichier(file);
       } else {
@@ -531,7 +615,6 @@ function slug(str) {
 
 // ============ INITIALISATION ============
 document.addEventListener("DOMContentLoaded", () => {
-  // Boutons d'en-tête
   document.getElementById("btn-rafraichir").addEventListener("click", () => {
     chargerDashboard();
     chargerHistorique();
@@ -539,7 +622,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-admin").addEventListener("click", afficherModaleAdmin);
   document.getElementById("btn-deconnexion").addEventListener("click", deconnecterAdmin);
 
-  // Modale admin
   document.getElementById("btn-fermer-admin").addEventListener("click", () => {
     document.getElementById("modale-admin").style.display = "none";
   });
@@ -551,7 +633,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") tenterConnexionAdmin();
   });
 
-  // Onglets
   document.querySelectorAll(".tab").forEach(tab => {
     tab.addEventListener("click", () => {
       document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
@@ -562,27 +643,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Drag & Drop + scan
   initialiserDragDrop();
 
-  // Modale OCR
-  document.getElementById("btn-fermer-modale").addEventListener("click", () => {
-    document.getElementById("modale-ocr").style.display = "none";
-  });
-  document.getElementById("btn-annuler-ocr").addEventListener("click", () => {
-    document.getElementById("modale-ocr").style.display = "none";
-  });
-  document.getElementById("btn-valider-ocr").addEventListener("click", validerOCR);
+  // ⚠️ NE PAS attacher d'événements directs sur la modale OCR
+  // Ils sont gérés dynamiquement dans afficherModaleOCRAsync
 
-  // Ajout stock
   document.getElementById("btn-ajouter-stock").addEventListener("click", ajouterStock);
-
-  // Date par défaut
   document.getElementById("stock-date").valueAsDate = new Date();
 
-  // Interface admin
   majInterfaceAdmin();
-
-  // Charger les données
   chargerDashboard();
 });
