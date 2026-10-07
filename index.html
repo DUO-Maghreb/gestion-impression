@@ -36,7 +36,7 @@
     <div id="drop-zone" class="drop-zone">
       <div class="drop-zone-content">
         <div class="drop-zone-icon">📄</div>
-        <div class="drop-zone-titre">Scanner un BAT</div>
+        <div class="drop-zone-titre">Scanner un BAT / BC</div>
         <div class="drop-zone-sous-titre">Cliquez ici ou <strong>glissez-déposez</strong> un fichier PDF ou image</div>
         <button id="btn-scanner" class="btn btn-primary btn-large">📄 Choisir un fichier</button>
       </div>
@@ -107,11 +107,11 @@
   <div id="modale-ocr" class="modale" style="display:none;">
     <div class="modale-content">
       <div class="modale-header">
-        <h2>📄 Valider le BAT</h2>
+        <h2 id="ocr-titre">📄 Valider le job</h2>
         <button id="btn-fermer-modale" class="btn-close">✕</button>
       </div>
       <div class="modale-body">
-        <p class="modale-info">Vérifiez et corrigez les données extraites avant de valider.</p>
+        <p class="modale-info" id="ocr-info">Vérifiez et corrigez les données extraites avant de valider.</p>
         <div class="form-grid">
           <label>Client<input type="text" id="ocr-client"></label>
           <label>Job / Réf<input type="text" id="ocr-job"></label>
@@ -120,7 +120,7 @@
           <label>Hauteur (m)<input type="number" id="ocr-hauteur" step="0.01"></label>
           <label>Quantité<input type="number" id="ocr-quantite" step="1"></label>
           <label>Tissu<select id="ocr-tissu"></select></label>
-          <label>Commentaire<input type="text" id="ocr-commentaire" placeholder="Optionnel"></label>
+          <label>Désignation / Commentaire<input type="text" id="ocr-commentaire" placeholder="Optionnel"></label>
         </div>
       </div>
       <div class="modale-footer">
