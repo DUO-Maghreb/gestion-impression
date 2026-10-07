@@ -61,12 +61,23 @@
       <table class="table" id="table-jobs">
         <thead>
           <tr>
-            <th>Date</th><th>Client</th><th>Job / Réf</th><th>L (m)</th><th>H (m)</th><th>Qté</th>
-            <th>Tissu</th><th>État</th><th>Qté imp.</th><th>%</th><th>m²</th><th class="col-actions">Actions</th>
+            <th>Date</th>
+            <th>Client</th>
+            <th>Job / Réf</th>
+            <th>L (m)</th>
+            <th>H (m)</th>
+            <th>Qté</th>
+            <th>Surf. unit. (m²)</th>
+            <th>Surf. totale (m²)</th>
+            <th>Tissu</th>
+            <th>État</th>
+            <th>Qté imp.</th>
+            <th>%</th>
+            <th class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody id="tbody-jobs">
-          <tr><td colspan="12" class="vide">Aucun job pour le moment.</td></tr>
+          <tr><td colspan="13" class="vide">Aucun job pour le moment.</td></tr>
         </tbody>
       </table>
     </div>
@@ -113,8 +124,7 @@
       </div>
       <div class="modale-body">
         <p class="modale-info" id="ocr-info">Vérifiez et corrigez les données extraites avant de valider.</p>
-        
-        <!-- Tableau récapitulatif -->
+
         <div class="table-wrapper">
           <table class="table table-editable" id="table-ocr">
             <thead>
@@ -123,10 +133,11 @@
                 <th>Client</th>
                 <th>Job / Réf</th>
                 <th>Date</th>
-                <th>Largeur</th>
-                <th>Hauteur</th>
-                <th>Surface (m²)</th>
+                <th>L (m)</th>
+                <th>H (m)</th>
+                <th>Surf. unit. (m²)</th>
                 <th>Qté</th>
+                <th>Surf. totale (m²)</th>
                 <th>Tissu</th>
                 <th>Désignation</th>
               </tr>
@@ -134,8 +145,7 @@
             <tbody id="tbody-ocr"></tbody>
           </table>
         </div>
-        
-        <!-- Résumé -->
+
         <div class="resume-ocr" id="resume-ocr">
           <div><strong>Total jobs sélectionnés :</strong> <span id="resume-total">0</span></div>
           <div><strong>Surface totale :</strong> <span id="resume-surface">0</span> m²</div>
