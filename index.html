@@ -9,82 +9,60 @@
 </head>
 <body>
 
-  <!-- ============ EN-TÊTE ============ -->
   <header class="header">
     <div class="header-left">
       <h1>🖨️ Gestion Impression</h1>
       <span class="statut-lecture">👁️ Consultation libre</span>
     </div>
     <div class="header-right">
-      <button id="btn-rafraichir" class="btn btn-secondary" title="Rafraîchir">🔄 Rafraîchir</button>
+      <button id="btn-rafraichir" class="btn btn-secondary">🔄 Rafraîchir</button>
       <button id="btn-admin" class="btn btn-admin">🔒 Connexion admin</button>
       <button id="btn-deconnexion" class="btn btn-danger" style="display:none;">🔓 Déconnexion</button>
     </div>
   </header>
 
-  <!-- ============ MESSAGE D'ERREUR ============ -->
   <div id="erreur" class="erreur" style="display:none;"></div>
 
-  <!-- ============ KPI ============ -->
   <section class="kpi-section">
-    <div class="kpi-card kpi-attente">
-      <div class="kpi-label">En attente</div>
-      <div class="kpi-valeur" id="kpi-attente">0</div>
-    </div>
-    <div class="kpi-card kpi-encours">
-      <div class="kpi-label">En cours</div>
-      <div class="kpi-valeur" id="kpi-encours">0</div>
-    </div>
-    <div class="kpi-card kpi-rupture">
-      <div class="kpi-label">Ruptures</div>
-      <div class="kpi-valeur" id="kpi-rupture">0</div>
-    </div>
-    <div class="kpi-card kpi-accompli">
-      <div class="kpi-label">Accomplis</div>
-      <div class="kpi-valeur" id="kpi-accompli">0</div>
-    </div>
-    <div class="kpi-card kpi-m2">
-      <div class="kpi-label">m² aujourd'hui</div>
-      <div class="kpi-valeur" id="kpi-m2">0</div>
-    </div>
-    <div class="kpi-card kpi-stock">
-      <div class="kpi-label">Stock critique</div>
-      <div class="kpi-valeur" id="kpi-stock">0</div>
-    </div>
+    <div class="kpi-card kpi-attente"><div class="kpi-label">En attente</div><div class="kpi-valeur" id="kpi-attente">0</div></div>
+    <div class="kpi-card kpi-encours"><div class="kpi-label">En cours</div><div class="kpi-valeur" id="kpi-encours">0</div></div>
+    <div class="kpi-card kpi-rupture"><div class="kpi-label">Ruptures</div><div class="kpi-valeur" id="kpi-rupture">0</div></div>
+    <div class="kpi-card kpi-accompli"><div class="kpi-label">Accomplis</div><div class="kpi-valeur" id="kpi-accompli">0</div></div>
+    <div class="kpi-card kpi-m2"><div class="kpi-label">m² aujourd'hui</div><div class="kpi-valeur" id="kpi-m2">0</div></div>
+    <div class="kpi-card kpi-stock"><div class="kpi-label">Stock critique</div><div class="kpi-valeur" id="kpi-stock">0</div></div>
   </section>
 
-  <!-- ============ BOUTON SCANNER (ADMIN) ============ -->
   <section id="zone-scan" class="zone-scan" style="display:none;">
-    <button id="btn-scanner" class="btn btn-primary btn-large">📄 Scanner un BAT</button>
-    <span class="aide-scan">PDF ou image — glisser-déposer possible</span>
-    <input type="file" id="input-fichier" accept="application/pdf,image/*" style="display:none;">
+    <div id="drop-zone" class="drop-zone">
+      <div class="drop-zone-content">
+        <div class="drop-zone-icon">📄</div>
+        <div class="drop-zone-titre">Scanner un BAT</div>
+        <div class="drop-zone-sous-titre">Cliquez ici ou <strong>glissez-déposez</strong> un fichier PDF ou image</div>
+        <button id="btn-scanner" class="btn btn-primary btn-large">📄 Choisir un fichier</button>
+      </div>
+      <input type="file" id="input-fichier" accept="application/pdf,image/*" style="display:none;">
+    </div>
+    <div id="drop-overlay" class="drop-overlay">
+      <div class="drop-overlay-content">
+        <div class="drop-overlay-icon">📥</div>
+        <div class="drop-overlay-text">Déposez le fichier ici !</div>
+      </div>
+    </div>
   </section>
 
-  <!-- ============ ONGLETS ============ -->
   <nav class="tabs">
     <button class="tab active" data-tab="jobs">📋 Jobs</button>
     <button class="tab" data-tab="stock">📦 Stock</button>
     <button class="tab" data-tab="historique">📜 Historique</button>
   </nav>
 
-  <!-- ============ CONTENU JOBS ============ -->
   <section id="tab-jobs" class="tab-content active">
     <div class="table-wrapper">
       <table class="table" id="table-jobs">
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Client</th>
-            <th>Job / Réf</th>
-            <th>L (m)</th>
-            <th>H (m)</th>
-            <th>Qté</th>
-            <th>Tissu</th>
-            <th>État</th>
-            <th>Qté imp.</th>
-            <th>%</th>
-            <th>m²</th>
-            <th class="col-actions">Actions</th>
+            <th>Date</th><th>Client</th><th>Job / Réf</th><th>L (m)</th><th>H (m)</th><th>Qté</th>
+            <th>Tissu</th><th>État</th><th>Qté imp.</th><th>%</th><th>m²</th><th class="col-actions">Actions</th>
           </tr>
         </thead>
         <tbody id="tbody-jobs">
@@ -94,72 +72,38 @@
     </div>
   </section>
 
-  <!-- ============ CONTENU STOCK ============ -->
   <section id="tab-stock" class="tab-content">
     <div class="table-wrapper">
       <table class="table" id="table-stock">
         <thead>
-          <tr>
-            <th>Tissu</th>
-            <th>Stock initial</th>
-            <th>Total acheté</th>
-            <th>Total utilisé</th>
-            <th>Stock restant</th>
-            <th>Seuil alerte</th>
-            <th>Dernière entrée</th>
-            <th>Fournisseur</th>
-          </tr>
+          <tr><th>Tissu</th><th>Stock initial</th><th>Total acheté</th><th>Total utilisé</th><th>Stock restant</th><th>Seuil alerte</th><th>Dernière entrée</th><th>Fournisseur</th></tr>
         </thead>
         <tbody id="tbody-stock"></tbody>
       </table>
     </div>
-
-    <!-- Formulaire d'ajout de stock (admin) -->
     <div id="zone-ajout-stock" class="form-stock" style="display:none;">
       <h3>➕ Ajouter un achat de tissu</h3>
       <div class="form-grid">
-        <label>Tissu
-          <select id="stock-tissu"></select>
-        </label>
-        <label>Quantité (m²)
-          <input type="number" id="stock-quantite" min="0" step="0.01" placeholder="0.00">
-        </label>
-        <label>Prix unitaire (optionnel)
-          <input type="number" id="stock-prix" min="0" step="0.01" placeholder="0.00">
-        </label>
-        <label>Fournisseur (optionnel)
-          <input type="text" id="stock-fournisseur" placeholder="Nom du fournisseur">
-        </label>
-        <label>Date
-          <input type="date" id="stock-date">
-        </label>
-        <label>Commentaire
-          <input type="text" id="stock-commentaire" placeholder="Optionnel">
-        </label>
+        <label>Tissu<select id="stock-tissu"></select></label>
+        <label>Quantité (m²)<input type="number" id="stock-quantite" min="0" step="0.01" placeholder="0.00"></label>
+        <label>Prix unitaire<input type="number" id="stock-prix" min="0" step="0.01" placeholder="0.00"></label>
+        <label>Fournisseur<input type="text" id="stock-fournisseur" placeholder="Nom"></label>
+        <label>Date<input type="date" id="stock-date"></label>
+        <label>Commentaire<input type="text" id="stock-commentaire" placeholder="Optionnel"></label>
       </div>
       <button id="btn-ajouter-stock" class="btn btn-primary">Valider l'achat</button>
     </div>
   </section>
 
-  <!-- ============ CONTENU HISTORIQUE ============ -->
   <section id="tab-historique" class="tab-content">
     <div class="table-wrapper">
       <table class="table">
-        <thead>
-          <tr>
-            <th>Date / Heure</th>
-            <th>Utilisateur</th>
-            <th>Action</th>
-            <th>Cible</th>
-            <th>Détail</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Date / Heure</th><th>Utilisateur</th><th>Action</th><th>Cible</th><th>Détail</th></tr></thead>
         <tbody id="tbody-historique"></tbody>
       </table>
     </div>
   </section>
 
-  <!-- ============ MODALE DE VALIDATION OCR ============ -->
   <div id="modale-ocr" class="modale" style="display:none;">
     <div class="modale-content">
       <div class="modale-header">
@@ -169,30 +113,14 @@
       <div class="modale-body">
         <p class="modale-info">Vérifiez et corrigez les données extraites avant de valider.</p>
         <div class="form-grid">
-          <label>Client
-            <input type="text" id="ocr-client">
-          </label>
-          <label>Job / Réf
-            <input type="text" id="ocr-job">
-          </label>
-          <label>Date réception
-            <input type="text" id="ocr-date" placeholder="jj/mm/aaaa">
-          </label>
-          <label>Largeur (m)
-            <input type="number" id="ocr-largeur" step="0.01">
-          </label>
-          <label>Hauteur (m)
-            <input type="number" id="ocr-hauteur" step="0.01">
-          </label>
-          <label>Quantité
-            <input type="number" id="ocr-quantite" step="1">
-          </label>
-          <label>Tissu
-            <select id="ocr-tissu"></select>
-          </label>
-          <label>Commentaire
-            <input type="text" id="ocr-commentaire" placeholder="Optionnel">
-          </label>
+          <label>Client<input type="text" id="ocr-client"></label>
+          <label>Job / Réf<input type="text" id="ocr-job"></label>
+          <label>Date réception<input type="text" id="ocr-date" placeholder="jj/mm/aaaa"></label>
+          <label>Largeur (m)<input type="number" id="ocr-largeur" step="0.01"></label>
+          <label>Hauteur (m)<input type="number" id="ocr-hauteur" step="0.01"></label>
+          <label>Quantité<input type="number" id="ocr-quantite" step="1"></label>
+          <label>Tissu<select id="ocr-tissu"></select></label>
+          <label>Commentaire<input type="text" id="ocr-commentaire" placeholder="Optionnel"></label>
         </div>
       </div>
       <div class="modale-footer">
@@ -202,7 +130,6 @@
     </div>
   </div>
 
-  <!-- ============ MODALE MOT DE PASSE ============ -->
   <div id="modale-admin" class="modale" style="display:none;">
     <div class="modale-content modale-small">
       <div class="modale-header">
@@ -210,9 +137,7 @@
         <button id="btn-fermer-admin" class="btn-close">✕</button>
       </div>
       <div class="modale-body">
-        <label>Mot de passe
-          <input type="password" id="input-password" placeholder="••••••••">
-        </label>
+        <label>Mot de passe<input type="password" id="input-password" placeholder="••••••••"></label>
         <div id="admin-erreur" class="admin-erreur" style="display:none;"></div>
       </div>
       <div class="modale-footer">
@@ -222,10 +147,14 @@
     </div>
   </div>
 
-  <!-- ============ INDICATEUR DE CHARGEMENT ============ -->
   <div id="loading" class="loading" style="display:none;">
-    <div class="spinner"></div>
-    <span>Traitement en cours...</span>
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <div class="loading-message" id="loading-message">Traitement en cours...</div>
+      <div class="progress-bar-container"><div class="progress-bar" id="progress-bar"></div></div>
+      <div class="progress-text" id="progress-text">0%</div>
+      <div class="loading-detail" id="loading-detail">Merci de patienter...</div>
+    </div>
   </div>
 
   <script src="app.js"></script>
