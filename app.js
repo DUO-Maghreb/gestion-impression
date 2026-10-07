@@ -414,7 +414,6 @@ function afficherModaleOCR(jobs) {
 
   document.getElementById("modale-ocr").style.display = "flex";
 }
-
 function attacherEvenementsTableauOCR() {
   // Checkbox individuel
   document.querySelectorAll(".check-job").forEach(cb => {
@@ -430,45 +429,60 @@ function attacherEvenementsTableauOCR() {
     mettreAJourResume();
   };
 
-  // Inputs largeur, hauteur, quantité → recalcul auto
+  // Fonction de recalcul (utilisée pour L, H ET Q)
+  function recalculerLigne(tr) {
+    const l = parseFloat(tr.querySelector(".inp-largeur").value) || 0;
+    const h = parseFloat(tr.querySelector(".inp-hauteur").value) || 0;
+    const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
+
+    const surfUnit = l * h;
+    const surfTotal = surfUnit * q;
+
+    const inpUnit = tr.querySelector(".inp-surface-unitaire");
+    const inpTotal = tr.querySelector(".inp-surface-totale");
+
+    if (l > 0 && h > 0) {
+      // Mode auto (readonly)
+      inpUnit.value = surfUnit.toFixed(3);
+      inpTotal.value = surfTotal.toFixed(3);
+      inpUnit.readOnly = true;
+      inpTotal.readOnly = true;
+      inpUnit.classList.remove("surface-manuel");
+      inpUnit.classList.add("surface-auto");
+      inpTotal.classList.remove("surface-manuel");
+      inpTotal.classList.add("surface-auto");
+    } else {
+      // Mode manuel : on recalcule la surface totale à partir de la surface unitaire (si elle existe)
+      inpUnit.readOnly = false;
+      inpTotal.readOnly = false;
+      inpUnit.classList.remove("surface-auto");
+      inpUnit.classList.add("surface-manuel");
+      inpTotal.classList.remove("surface-auto");
+      inpTotal.classList.add("surface-manuel");
+
+      // Si la surface unitaire était déjà saisie, on recalcule la surface totale
+      const surfUnitActuelle = parseFloat(inpUnit.value) || 0;
+      if (surfUnitActuelle > 0 && q > 0) {
+        inpTotal.value = (surfUnitActuelle * q).toFixed(3);
+      }
+    }
+
+    mettreAJourResume();
+  }
+
+  // Attacher l'écouteur sur L, H et Qté
   document.querySelectorAll(".inp-largeur, .inp-hauteur, .inp-quantite").forEach(inp => {
     inp.addEventListener("input", (e) => {
       const tr = e.target.closest("tr");
-      const l = parseFloat(tr.querySelector(".inp-largeur").value) || 0;
-      const h = parseFloat(tr.querySelector(".inp-hauteur").value) || 0;
-      const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
-
-      const surfUnit = l * h;
-      const surfTotal = surfUnit * q;
-
-      const inpUnit = tr.querySelector(".inp-surface-unitaire");
-      const inpTotal = tr.querySelector(".inp-surface-totale");
-
-      if (l > 0 && h > 0) {
-        // Mode auto (readonly)
-        inpUnit.value = surfUnit.toFixed(3);
-        inpTotal.value = surfTotal.toFixed(3);
-        inpUnit.readOnly = true;
-        inpTotal.readOnly = true;
-        inpUnit.classList.remove("surface-manuel");
-        inpUnit.classList.add("surface-auto");
-        inpTotal.classList.remove("surface-manuel");
-        inpTotal.classList.add("surface-auto");
-      } else {
-        // Mode manuel (éditable)
-        inpUnit.readOnly = false;
-        inpTotal.readOnly = false;
-        inpUnit.classList.remove("surface-auto");
-        inpUnit.classList.add("surface-manuel");
-        inpTotal.classList.remove("surface-auto");
-        inpTotal.classList.add("surface-manuel");
-      }
-
-      mettreAJourResume();
+      recalculerLigne(tr);
+    });
+    inp.addEventListener("change", (e) => {
+      const tr = e.target.closest("tr");
+      recalculerLigne(tr);
     });
   });
 
-  // Input surface unitaire (modification manuelle en mode manuel)
+  // Input surface unitaire (modification manuelle)
   document.querySelectorAll(".inp-surface-unitaire").forEach(inp => {
     inp.addEventListener("input", (e) => {
       const tr = e.target.closest("tr");
@@ -482,7 +496,7 @@ function attacherEvenementsTableauOCR() {
     });
   });
 
-  // Input surface totale (modification manuelle en mode manuel)
+  // Input surface totale (modification manuelle)
   document.querySelectorAll(".inp-surface-totale").forEach(inp => {
     inp.addEventListener("input", (e) => {
       const tr = e.target.closest("tr");
