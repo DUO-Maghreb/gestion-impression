@@ -9,8 +9,9 @@ const API_TOKEN = "gj7K2mP9xQ4vL8nR3wT6yH1bN5cF0dS2aE7uJ9iZ4kM8pX3qV6";
 // ============ ÉTAT GLOBAL ============
 let DATA = { jobs: [], stock: [], kpi: {}, parametres: { tissus: [], etats: [] } };
 let PROGRESSION_TIMER = null;
+let JOBS_EN_COURS = [];   // jobs actuellement dans la modale
 
-// ============ AUTHENTIFICATION ============
+// ============ AUTH ============
 function estAdmin() { return sessionStorage.getItem("admin") === "ok"; }
 function getAdminPassword() { return sessionStorage.getItem("adminPwd") || ""; }
 function setAdmin(password) {
@@ -22,7 +23,7 @@ function logoutAdmin() {
   sessionStorage.removeItem("adminPwd");
 }
 
-// ============ APPELS API ============
+// ============ API ============
 async function apiGet(action, extraParams = {}) {
   const params = new URLSearchParams({ action: action, token: API_TOKEN, ...extraParams });
   const res = await fetch(`${API_URL}?${params.toString()}`);
@@ -164,7 +165,7 @@ function afficherHistorique(histo) {
 }
 
 function remplirListesDeroulantes(params) {
-  const selects = ["ocr-tissu", "stock-tissu"];
+  const selects = ["stock-tissu"];
   selects.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
@@ -278,7 +279,7 @@ function arreterProgression() {
   mettreAJourProgression(100, "✅ Terminé !", "");
 }
 
-// ============ SCAN + UPLOAD ============
+// ============ SCAN ============
 function scannerBAT() {
   document.getElementById("input-fichier").click();
 }
@@ -316,11 +317,8 @@ async function traiterFichier(file) {
       return;
     }
     
-    // Masquer l'overlay AVANT d'afficher les modales
     afficherLoading(false);
-    
-    // Traiter les jobs un par un
-    await traiterJobsEnBoucle(jobs);
+    afficherModaleOCR(jobs);
     
   } catch (err) {
     arreterProgression();
@@ -329,134 +327,6 @@ async function traiterFichier(file) {
     afficherLoading(false);
     btnScanner.disabled = false;
   }
-}
-
-/**
- * Traite une liste de jobs un par un.
- */
-async function traiterJobsEnBoucle(jobs) {
-  let nbValides = 0;
-  let nbAnnules = 0;
-  
-  for (let i = 0; i < jobs.length; i++) {
-    const job = jobs[i];
-    job._progression = { actuel: i + 1, total: jobs.length };
-    
-    const valide = await afficherModaleOCRAsync(job);
-    
-    if (valide) {
-      nbValides++;
-    } else {
-      nbAnnules++;
-      if (i < jobs.length - 1) {
-        if (!confirm("Voulez-vous continuer avec les jobs restants ?")) {
-          break;
-        }
-      }
-    }
-  }
-  
-  // Rafraîchir le dashboard
-  chargerDashboard();
-  
-  // Message final
-  if (jobs.length > 1) {
-    setTimeout(() => {
-      alert("✅ Traitement terminé !\n" + nbValides + " job(s) validé(s), " + nbAnnules + " annulé(s).");
-    }, 500);
-  }
-}
-
-/**
- * Affiche la modale OCR en mode "promesse".
- * Résout `true` si le job est validé, `false` si annulé.
- */
-function afficherModaleOCRAsync(data) {
-  return new Promise((resolve) => {
-    // ==== Remplir les champs ====
-    document.getElementById("ocr-client").value = data.client || "";
-    document.getElementById("ocr-job").value = data.jobRef || "";
-    document.getElementById("ocr-date").value = data.dateReception || "";
-    document.getElementById("ocr-largeur").value = data.largeur || 0;
-    document.getElementById("ocr-hauteur").value = data.hauteur || 0;
-    document.getElementById("ocr-quantite").value = data.quantite || 1;
-    document.getElementById("ocr-commentaire").value = data.designation || "";
-    
-    // ==== Tissu ====
-    const selTissu = document.getElementById("ocr-tissu");
-    const tissuExtrait = (data.tissu || "").toLowerCase();
-    for (let i = 0; i < selTissu.options.length; i++) {
-      if (selTissu.options[i].value.toLowerCase() === tissuExtrait) {
-        selTissu.selectedIndex = i;
-        break;
-      }
-    }
-    
-    // ==== Titre et info ====
-    const titre = document.getElementById("ocr-titre");
-    const info = document.getElementById("ocr-info");
-    
-    if (data._progression && data._progression.total > 1) {
-      titre.textContent = "📄 Valider le job (" + data._progression.actuel + " / " + data._progression.total + ")";
-      info.textContent = "Vérifiez et corrigez les données de ce job. Après validation, vous passerez au suivant.";
-    } else {
-      titre.textContent = "📄 Valider le job";
-      info.textContent = "Vérifiez et corrigez les données extraites avant de valider.";
-    }
-    
-    // ==== Afficher la modale ====
-    document.getElementById("modale-ocr").style.display = "flex";
-    
-    // ==== Boutons : on remplace par clone pour supprimer les anciens handlers ====
-    const btnValiderOld = document.getElementById("btn-valider-ocr");
-    const btnAnnulerOld = document.getElementById("btn-annuler-ocr");
-    const btnFermerOld = document.getElementById("btn-fermer-modale");
-    
-    const btnValider = btnValiderOld.cloneNode(true);
-    const btnAnnuler = btnAnnulerOld.cloneNode(true);
-    const btnFermer = btnFermerOld.cloneNode(true);
-    
-    btnValiderOld.replaceWith(btnValider);
-    btnAnnulerOld.replaceWith(btnAnnuler);
-    btnFermerOld.replaceWith(btnFermer);
-    
-    // ==== Action Valider ====
-    btnValider.onclick = async () => {
-      const payload = {
-        dateReception: document.getElementById("ocr-date").value,
-        client: document.getElementById("ocr-client").value,
-        jobRef: document.getElementById("ocr-job").value,
-        largeur: parseFloat(document.getElementById("ocr-largeur").value) || 0,
-        hauteur: parseFloat(document.getElementById("ocr-hauteur").value) || 0,
-        quantite: parseInt(document.getElementById("ocr-quantite").value) || 0,
-        tissu: document.getElementById("ocr-tissu").value,
-        commentaire: document.getElementById("ocr-commentaire").value,
-        utilisateur: "Admin"
-      };
-      
-      afficherLoading(true, "💾 Enregistrement du job...");
-      const res = await apiPost("validateJob", payload);
-      afficherLoading(false);
-      
-      if (res.success) {
-        document.getElementById("modale-ocr").style.display = "none";
-        resolve(true);
-      } else {
-        alert("Erreur : " + (res.error || "inconnue"));
-      }
-    };
-    
-    // ==== Action Annuler ====
-    btnAnnuler.onclick = () => {
-      document.getElementById("modale-ocr").style.display = "none";
-      resolve(false);
-    };
-    
-    btnFermer.onclick = () => {
-      document.getElementById("modale-ocr").style.display = "none";
-      resolve(false);
-    };
-  });
 }
 
 function fileToBase64(file) {
@@ -469,6 +339,236 @@ function fileToBase64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// ============ MODALE OCR MULTI-JOBS ============
+function afficherModaleOCR(jobs) {
+  JOBS_EN_COURS = jobs;
+  
+  // Titre et info
+  const titre = document.getElementById("ocr-titre");
+  const info = document.getElementById("ocr-info");
+  titre.textContent = jobs.length === 1
+    ? "📄 Valider le job"
+    : "📄 Valider " + jobs.length + " jobs";
+  info.textContent = jobs.length === 1
+    ? "Vérifiez et corrigez les données extraites avant de valider."
+    : "Vérifiez et corrigez les données. Décochez les lignes à ne pas créer.";
+  
+  // Construire le tableau
+  const tbody = document.getElementById("tbody-ocr");
+  tbody.innerHTML = "";
+  
+  const tissus = (DATA.parametres && DATA.parametres.tissus) ? DATA.parametres.tissus : [];
+  
+  jobs.forEach((job, idx) => {
+    const tr = document.createElement("tr");
+    tr.dataset.index = idx;
+    
+    // Largeur & Hauteur à 0 ?
+    const pasDeDimensions = (!job.largeur || job.largeur == 0) && (!job.hauteur || job.hauteur == 0);
+    
+    // Options de tissu
+    let optionsTissu = "";
+    tissus.forEach(t => {
+      const sel = (t.toLowerCase() === (job.tissu || "").toLowerCase()) ? "selected" : "";
+      optionsTissu += `<option value="${escapeHtml(t)}" ${sel}>${escapeHtml(t)}</option>`;
+    });
+    
+    tr.innerHTML = `
+      <td class="col-check"><input type="checkbox" class="check-job" data-index="${idx}" checked></td>
+      <td><input type="text" class="inp-client" data-index="${idx}" value="${escapeHtml(job.client || "")}"></td>
+      <td><input type="text" class="inp-job" data-index="${idx}" value="${escapeHtml(job.jobRef || "")}"></td>
+      <td><input type="text" class="inp-date" data-index="${idx}" value="${escapeHtml(job.dateReception || "")}" style="width:90px;"></td>
+      <td><input type="number" step="0.01" class="inp-largeur" data-index="${idx}" value="${job.largeur || 0}" style="width:70px;"></td>
+      <td><input type="number" step="0.01" class="inp-hauteur" data-index="${idx}" value="${job.hauteur || 0}" style="width:70px;"></td>
+      <td>
+        <input type="number" step="0.01" class="inp-surface ${pasDeDimensions ? 'surface-input' : 'surface-auto'}"
+               data-index="${idx}" value="${calculSurface(job)}" style="width:90px;">
+      </td>
+      <td><input type="number" step="1" class="inp-quantite" data-index="${idx}" value="${job.quantite || 1}" style="width:60px;"></td>
+      <td>
+        <select class="inp-tissu" data-index="${idx}" style="width:130px;">
+          ${optionsTissu}
+        </select>
+      </td>
+      <td><input type="text" class="inp-designation" data-index="${idx}" value="${escapeHtml(job.designation || "")}"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  
+  // Attacher les événements de recalcul
+  attacherEvenementsTableauOCR();
+  
+  // Mettre à jour le résumé
+  mettreAJourResume();
+  
+  // Afficher la modale
+  document.getElementById("modale-ocr").style.display = "flex";
+}
+
+function calculSurface(job) {
+  const l = parseFloat(job.largeur) || 0;
+  const h = parseFloat(job.hauteur) || 0;
+  const q = parseInt(job.quantite) || 0;
+  const surface = l * h * q;
+  return Math.round(surface * 1000) / 1000;
+}
+
+function attacherEvenementsTableauOCR() {
+  // Checkbox individuel
+  document.querySelectorAll(".check-job").forEach(cb => {
+    cb.addEventListener("change", mettreAJourResume);
+  });
+  
+  // Checkbox "tout"
+  const checkAll = document.getElementById("check-all");
+  checkAll.onclick = () => {
+    document.querySelectorAll(".check-job").forEach(cb => {
+      cb.checked = checkAll.checked;
+    });
+    mettreAJourResume();
+  };
+  
+  // Inputs largeur, hauteur, quantité → recalcul auto de la surface
+  document.querySelectorAll(".inp-largeur, .inp-hauteur, .inp-quantite").forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      const idx = parseInt(e.target.dataset.index);
+      const tr = e.target.closest("tr");
+      const l = parseFloat(tr.querySelector(".inp-largeur").value) || 0;
+      const h = parseFloat(tr.querySelector(".inp-hauteur").value) || 0;
+      const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
+      const surfaceAuto = Math.round(l * h * q * 1000) / 1000;
+      
+      // Mettre à jour la surface SEULEMENT si elle était en mode "auto"
+      const surfInput = tr.querySelector(".inp-surface");
+      if (surfInput.classList.contains("surface-auto")) {
+        surfInput.value = surfaceAuto;
+      }
+      
+      // Changer le style : si L/H deviennent non nuls, on passe en auto
+      if (l > 0 && h > 0) {
+        surfInput.classList.remove("surface-input");
+        surfInput.classList.add("surface-auto");
+      } else {
+        surfInput.classList.remove("surface-auto");
+        surfInput.classList.add("surface-input");
+      }
+      
+      mettreAJourResume();
+    });
+  });
+  
+  // Input surface → calcul inverse (si possible)
+  document.querySelectorAll(".inp-surface").forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      const tr = e.target.closest("tr");
+      const l = parseFloat(tr.querySelector(".inp-largeur").value) || 0;
+      const h = parseFloat(tr.querySelector(".inp-hauteur").value) || 0;
+      const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
+      
+      // Si L et H sont 0, on garde la surface manuelle
+      // Sinon, si l'utilisateur a modifié la surface, on garde aussi sa valeur
+      if (l > 0 && h > 0) {
+        // Option : calculer largeur ou hauteur en fonction
+        const nouvelleSurface = parseFloat(e.target.value) || 0;
+        if (nouvelleSurface > 0) {
+          // On garde la surface modifiée manuellement
+          e.target.classList.remove("surface-auto");
+          e.target.classList.add("surface-input");
+        }
+      }
+      
+      mettreAJourResume();
+    });
+  });
+}
+
+function mettreAJourResume() {
+  const jobsSelectionnes = [];
+  let surfaceTotale = 0;
+  
+  document.querySelectorAll("#tbody-ocr tr").forEach(tr => {
+    const cb = tr.querySelector(".check-job");
+    if (cb && cb.checked) {
+      const surface = parseFloat(tr.querySelector(".inp-surface").value) || 0;
+      surfaceTotale += surface;
+      jobsSelectionnes.push(tr);
+    }
+  });
+  
+  document.getElementById("resume-total").textContent = jobsSelectionnes.length;
+  document.getElementById("resume-surface").textContent = (Math.round(surfaceTotale * 100) / 100).toFixed(2);
+  
+  // Mettre à jour le bouton de validation
+  const btnValider = document.getElementById("btn-valider-ocr");
+  btnValider.textContent = "✅ Tout valider (" + jobsSelectionnes.length + ")";
+  btnValider.disabled = jobsSelectionnes.length === 0;
+}
+
+// ============ VALIDATION GLOBALE ============
+async function validerTousLesJobs() {
+  const jobsAValider = [];
+  
+  document.querySelectorAll("#tbody-ocr tr").forEach(tr => {
+    const cb = tr.querySelector(".check-job");
+    if (!cb || !cb.checked) return;
+    
+    const idx = parseInt(cb.dataset.index);
+    const jobOrig = JOBS_EN_COURS[idx];
+    
+    const job = {
+      dateReception: tr.querySelector(".inp-date").value,
+      client: tr.querySelector(".inp-client").value,
+      jobRef: tr.querySelector(".inp-job").value,
+      largeur: parseFloat(tr.querySelector(".inp-largeur").value) || 0,
+      hauteur: parseFloat(tr.querySelector(".inp-hauteur").value) || 0,
+      quantite: parseInt(tr.querySelector(".inp-quantite").value) || 0,
+      tissu: tr.querySelector(".inp-tissu").value,
+      commentaire: tr.querySelector(".inp-designation").value,
+      designation: tr.querySelector(".inp-designation").value,
+      utilisateur: "Admin"
+    };
+    
+    // Si L/H = 0 mais surface > 0, on met une surface équivalente
+    // (ex: L=1, H=surface, Q=1 pour retrouver le même m²)
+    if (job.largeur === 0 && job.hauteur === 0) {
+      const surfaceManuelle = parseFloat(tr.querySelector(".inp-surface").value) || 0;
+      if (surfaceManuelle > 0) {
+        job.largeur = 1;
+        job.hauteur = surfaceManuelle;
+        if (job.quantite === 0) job.quantite = 1;
+      }
+    }
+    
+    jobsAValider.push(job);
+  });
+  
+  if (jobsAValider.length === 0) {
+    alert("Aucun job sélectionné.");
+    return;
+  }
+  
+  afficherLoading(true, "💾 Enregistrement des jobs...");
+  
+  try {
+    // Appeler une nouvelle route qui accepte un tableau
+    const res = await apiPost("validateJobs", { jobs: jobsAValider });
+    afficherLoading(false);
+    
+    if (res.success) {
+      document.getElementById("modale-ocr").style.display = "none";
+      chargerDashboard();
+      setTimeout(() => {
+        alert("✅ " + res.count + " job(s) enregistré(s) avec succès !");
+      }, 300);
+    } else {
+      alert("Erreur : " + (res.error || "inconnue"));
+    }
+  } catch (err) {
+    afficherLoading(false);
+    alert("Erreur : " + err.message);
+  }
 }
 
 // ============ DRAG & DROP ============
@@ -614,7 +714,17 @@ function slug(str) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-// ============ INITIALISATION ============
+function escapeHtml(str) {
+  if (!str) return "";
+  return str.toString()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ============ INIT ============
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-rafraichir").addEventListener("click", () => {
     chargerDashboard();
@@ -633,6 +743,15 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("input-password").addEventListener("keypress", e => {
     if (e.key === "Enter") tenterConnexionAdmin();
   });
+
+  // Modale OCR : attacher les boutons UNE SEULE FOIS
+  document.getElementById("btn-fermer-modale").addEventListener("click", () => {
+    document.getElementById("modale-ocr").style.display = "none";
+  });
+  document.getElementById("btn-annuler-ocr").addEventListener("click", () => {
+    document.getElementById("modale-ocr").style.display = "none";
+  });
+  document.getElementById("btn-valider-ocr").addEventListener("click", validerTousLesJobs);
 
   document.querySelectorAll(".tab").forEach(tab => {
     tab.addEventListener("click", () => {
