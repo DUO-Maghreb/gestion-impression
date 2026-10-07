@@ -9,7 +9,7 @@ const API_TOKEN = "gj7K2mP9xQ4vL8nR3wT6yH1bN5cF0dS2aE7uJ9iZ4kM8pX3qV6";
 // ============ ÉTAT GLOBAL ============
 let DATA = { jobs: [], stock: [], kpi: {}, parametres: { tissus: [], etats: [] } };
 let PROGRESSION_TIMER = null;
-let JOBS_EN_COURS = [];   // jobs actuellement dans la modale
+let JOBS_EN_COURS = [];
 
 // ============ AUTH ============
 function estAdmin() { return sessionStorage.getItem("admin") === "ok"; }
@@ -77,13 +77,17 @@ function afficherJobs(jobs) {
   const tbody = document.getElementById("tbody-jobs");
   tbody.innerHTML = "";
   if (!jobs || jobs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="vide">Aucun job pour le moment.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="vide">Aucun job pour le moment.</td></tr>';
     return;
   }
   jobs.forEach(job => {
     const tr = document.createElement("tr");
     const pourcentage = job.pourcentage ? (Number(job.pourcentage) * 100).toFixed(0) + "%" : "0%";
-    const m2 = job.m2Total ? Number(job.m2Total).toFixed(2) : "0.00";
+    const l = Number(job.largeur) || 0;
+    const h = Number(job.hauteur) || 0;
+    const q = Number(job.quantite) || 0;
+    const surfaceUnitaire = l * h;
+    const surfaceTotale = surfaceUnitaire * q;
     tr.innerHTML = `
       <td>${job.dateReception || ""}</td>
       <td>${job.client || ""}</td>
@@ -91,11 +95,12 @@ function afficherJobs(jobs) {
       <td>${job.largeur || 0}</td>
       <td>${job.hauteur || 0}</td>
       <td>${job.quantite || 0}</td>
+      <td>${surfaceUnitaire.toFixed(2)}</td>
+      <td><strong>${surfaceTotale.toFixed(2)}</strong></td>
       <td>${job.tissu || ""}</td>
       <td><span class="badge-etat">${job.etat || ""}</span></td>
       <td>${job.qteImprimee || 0}</td>
       <td>${pourcentage}</td>
-      <td>${m2}</td>
       <td class="col-actions">${genererBoutonsActions(job)}</td>
     `;
     tbody.appendChild(tr);
@@ -252,10 +257,10 @@ function demarrerProgression() {
     { pct: 75, msg: "⚙️ Extraction des données...", detail: "Identification des champs" },
     { pct: 90, msg: "📊 Finalisation...", detail: "Presque terminé" }
   ];
-  
+
   let i = 0;
   mettreAJourProgression(0, "⏳ Démarrage...", "Initialisation");
-  
+
   PROGRESSION_TIMER = setInterval(() => {
     if (i < etapes.length) {
       mettreAJourProgression(etapes[i].pct, etapes[i].msg, etapes[i].detail);
@@ -286,13 +291,13 @@ function scannerBAT() {
 
 async function traiterFichier(file) {
   if (!file) return;
-  
+
   const btnScanner = document.getElementById("btn-scanner");
   btnScanner.disabled = true;
-  
+
   afficherLoading(true);
   demarrerProgression();
-  
+
   try {
     const base64 = await fileToBase64(file);
     const res = await apiPost("ocr", {
@@ -303,23 +308,22 @@ async function traiterFichier(file) {
     });
 
     arreterProgression();
-    
+
     if (res.error) {
       alert("Erreur OCR : " + res.error);
       return;
     }
 
-    // Normaliser en tableau
     let jobs = Array.isArray(res.data) ? res.data : [res.data];
-    
+
     if (jobs.length === 0) {
       alert("Aucun job détecté dans le fichier.");
       return;
     }
-    
+
     afficherLoading(false);
     afficherModaleOCR(jobs);
-    
+
   } catch (err) {
     arreterProgression();
     alert("Erreur : " + err.message);
@@ -344,8 +348,7 @@ function fileToBase64(file) {
 // ============ MODALE OCR MULTI-JOBS ============
 function afficherModaleOCR(jobs) {
   JOBS_EN_COURS = jobs;
-  
-  // Titre et info
+
   const titre = document.getElementById("ocr-titre");
   const info = document.getElementById("ocr-info");
   titre.textContent = jobs.length === 1
@@ -354,39 +357,48 @@ function afficherModaleOCR(jobs) {
   info.textContent = jobs.length === 1
     ? "Vérifiez et corrigez les données extraites avant de valider."
     : "Vérifiez et corrigez les données. Décochez les lignes à ne pas créer.";
-  
-  // Construire le tableau
+
   const tbody = document.getElementById("tbody-ocr");
   tbody.innerHTML = "";
-  
+
   const tissus = (DATA.parametres && DATA.parametres.tissus) ? DATA.parametres.tissus : [];
-  
+
   jobs.forEach((job, idx) => {
     const tr = document.createElement("tr");
     tr.dataset.index = idx;
-    
-    // Largeur & Hauteur à 0 ?
-    const pasDeDimensions = (!job.largeur || job.largeur == 0) && (!job.hauteur || job.hauteur == 0);
-    
-    // Options de tissu
+
+    const l = parseFloat(job.largeur) || 0;
+    const h = parseFloat(job.hauteur) || 0;
+    const q = parseInt(job.quantite) || 1;
+    const surfaceManuelle = (l === 0 && h === 0);
+
+    const surfaceUnitaire = l * h;
+    const surfaceTotale = surfaceUnitaire * q;
+
     let optionsTissu = "";
     tissus.forEach(t => {
       const sel = (t.toLowerCase() === (job.tissu || "").toLowerCase()) ? "selected" : "";
       optionsTissu += `<option value="${escapeHtml(t)}" ${sel}>${escapeHtml(t)}</option>`;
     });
-    
+
     tr.innerHTML = `
       <td class="col-check"><input type="checkbox" class="check-job" data-index="${idx}" checked></td>
       <td><input type="text" class="inp-client" data-index="${idx}" value="${escapeHtml(job.client || "")}"></td>
       <td><input type="text" class="inp-job" data-index="${idx}" value="${escapeHtml(job.jobRef || "")}"></td>
       <td><input type="text" class="inp-date" data-index="${idx}" value="${escapeHtml(job.dateReception || "")}" style="width:90px;"></td>
-      <td><input type="number" step="0.01" class="inp-largeur" data-index="${idx}" value="${job.largeur || 0}" style="width:70px;"></td>
-      <td><input type="number" step="0.01" class="inp-hauteur" data-index="${idx}" value="${job.hauteur || 0}" style="width:70px;"></td>
+      <td><input type="number" step="0.01" class="inp-largeur" data-index="${idx}" value="${l}" style="width:70px;"></td>
+      <td><input type="number" step="0.01" class="inp-hauteur" data-index="${idx}" value="${h}" style="width:70px;"></td>
       <td>
-        <input type="number" step="0.01" class="inp-surface ${pasDeDimensions ? 'surface-input' : 'surface-auto'}"
-               data-index="${idx}" value="${calculSurface(job)}" style="width:90px;">
+        <input type="number" step="0.001" class="inp-surface-unitaire ${surfaceManuelle ? 'surface-manuel' : 'surface-auto'}"
+               data-index="${idx}" value="${surfaceUnitaire.toFixed(3)}" style="width:90px;"
+               ${surfaceManuelle ? '' : 'readonly'}>
       </td>
-      <td><input type="number" step="1" class="inp-quantite" data-index="${idx}" value="${job.quantite || 1}" style="width:60px;"></td>
+      <td><input type="number" step="1" class="inp-quantite" data-index="${idx}" value="${q}" style="width:60px;"></td>
+      <td>
+        <input type="number" step="0.001" class="inp-surface-totale ${surfaceManuelle ? 'surface-manuel' : 'surface-auto'}"
+               data-index="${idx}" value="${surfaceTotale.toFixed(3)}" style="width:100px;"
+               ${surfaceManuelle ? '' : 'readonly'}>
+      </td>
       <td>
         <select class="inp-tissu" data-index="${idx}" style="width:130px;">
           ${optionsTissu}
@@ -396,23 +408,11 @@ function afficherModaleOCR(jobs) {
     `;
     tbody.appendChild(tr);
   });
-  
-  // Attacher les événements de recalcul
-  attacherEvenementsTableauOCR();
-  
-  // Mettre à jour le résumé
-  mettreAJourResume();
-  
-  // Afficher la modale
-  document.getElementById("modale-ocr").style.display = "flex";
-}
 
-function calculSurface(job) {
-  const l = parseFloat(job.largeur) || 0;
-  const h = parseFloat(job.hauteur) || 0;
-  const q = parseInt(job.quantite) || 0;
-  const surface = l * h * q;
-  return Math.round(surface * 1000) / 1000;
+  attacherEvenementsTableauOCR();
+  mettreAJourResume();
+
+  document.getElementById("modale-ocr").style.display = "flex";
 }
 
 function attacherEvenementsTableauOCR() {
@@ -420,7 +420,7 @@ function attacherEvenementsTableauOCR() {
   document.querySelectorAll(".check-job").forEach(cb => {
     cb.addEventListener("change", mettreAJourResume);
   });
-  
+
   // Checkbox "tout"
   const checkAll = document.getElementById("check-all");
   checkAll.onclick = () => {
@@ -429,56 +429,71 @@ function attacherEvenementsTableauOCR() {
     });
     mettreAJourResume();
   };
-  
-  // Inputs largeur, hauteur, quantité → recalcul auto de la surface
+
+  // Inputs largeur, hauteur, quantité → recalcul auto
   document.querySelectorAll(".inp-largeur, .inp-hauteur, .inp-quantite").forEach(inp => {
     inp.addEventListener("input", (e) => {
-      const idx = parseInt(e.target.dataset.index);
       const tr = e.target.closest("tr");
       const l = parseFloat(tr.querySelector(".inp-largeur").value) || 0;
       const h = parseFloat(tr.querySelector(".inp-hauteur").value) || 0;
       const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
-      const surfaceAuto = Math.round(l * h * q * 1000) / 1000;
-      
-      // Mettre à jour la surface SEULEMENT si elle était en mode "auto"
-      const surfInput = tr.querySelector(".inp-surface");
-      if (surfInput.classList.contains("surface-auto")) {
-        surfInput.value = surfaceAuto;
-      }
-      
-      // Changer le style : si L/H deviennent non nuls, on passe en auto
+
+      const surfUnit = l * h;
+      const surfTotal = surfUnit * q;
+
+      const inpUnit = tr.querySelector(".inp-surface-unitaire");
+      const inpTotal = tr.querySelector(".inp-surface-totale");
+
       if (l > 0 && h > 0) {
-        surfInput.classList.remove("surface-input");
-        surfInput.classList.add("surface-auto");
+        // Mode auto (readonly)
+        inpUnit.value = surfUnit.toFixed(3);
+        inpTotal.value = surfTotal.toFixed(3);
+        inpUnit.readOnly = true;
+        inpTotal.readOnly = true;
+        inpUnit.classList.remove("surface-manuel");
+        inpUnit.classList.add("surface-auto");
+        inpTotal.classList.remove("surface-manuel");
+        inpTotal.classList.add("surface-auto");
       } else {
-        surfInput.classList.remove("surface-auto");
-        surfInput.classList.add("surface-input");
+        // Mode manuel (éditable)
+        inpUnit.readOnly = false;
+        inpTotal.readOnly = false;
+        inpUnit.classList.remove("surface-auto");
+        inpUnit.classList.add("surface-manuel");
+        inpTotal.classList.remove("surface-auto");
+        inpTotal.classList.add("surface-manuel");
       }
-      
+
       mettreAJourResume();
     });
   });
-  
-  // Input surface → calcul inverse (si possible)
-  document.querySelectorAll(".inp-surface").forEach(inp => {
+
+  // Input surface unitaire (modification manuelle en mode manuel)
+  document.querySelectorAll(".inp-surface-unitaire").forEach(inp => {
     inp.addEventListener("input", (e) => {
       const tr = e.target.closest("tr");
-      const l = parseFloat(tr.querySelector(".inp-largeur").value) || 0;
-      const h = parseFloat(tr.querySelector(".inp-hauteur").value) || 0;
+      const inpTotal = tr.querySelector(".inp-surface-totale");
       const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
-      
-      // Si L et H sont 0, on garde la surface manuelle
-      // Sinon, si l'utilisateur a modifié la surface, on garde aussi sa valeur
-      if (l > 0 && h > 0) {
-        // Option : calculer largeur ou hauteur en fonction
-        const nouvelleSurface = parseFloat(e.target.value) || 0;
-        if (nouvelleSurface > 0) {
-          // On garde la surface modifiée manuellement
-          e.target.classList.remove("surface-auto");
-          e.target.classList.add("surface-input");
-        }
+
+      const surfUnit = parseFloat(e.target.value) || 0;
+      inpTotal.value = (surfUnit * q).toFixed(3);
+
+      mettreAJourResume();
+    });
+  });
+
+  // Input surface totale (modification manuelle en mode manuel)
+  document.querySelectorAll(".inp-surface-totale").forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      const tr = e.target.closest("tr");
+      const inpUnit = tr.querySelector(".inp-surface-unitaire");
+      const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
+
+      const surfTotal = parseFloat(e.target.value) || 0;
+      if (q > 0) {
+        inpUnit.value = (surfTotal / q).toFixed(3);
       }
-      
+
       mettreAJourResume();
     });
   });
@@ -487,20 +502,19 @@ function attacherEvenementsTableauOCR() {
 function mettreAJourResume() {
   const jobsSelectionnes = [];
   let surfaceTotale = 0;
-  
+
   document.querySelectorAll("#tbody-ocr tr").forEach(tr => {
     const cb = tr.querySelector(".check-job");
     if (cb && cb.checked) {
-      const surface = parseFloat(tr.querySelector(".inp-surface").value) || 0;
+      const surface = parseFloat(tr.querySelector(".inp-surface-totale").value) || 0;
       surfaceTotale += surface;
       jobsSelectionnes.push(tr);
     }
   });
-  
+
   document.getElementById("resume-total").textContent = jobsSelectionnes.length;
   document.getElementById("resume-surface").textContent = (Math.round(surfaceTotale * 100) / 100).toFixed(2);
-  
-  // Mettre à jour le bouton de validation
+
   const btnValider = document.getElementById("btn-valider-ocr");
   btnValider.textContent = "✅ Tout valider (" + jobsSelectionnes.length + ")";
   btnValider.disabled = jobsSelectionnes.length === 0;
@@ -509,53 +523,60 @@ function mettreAJourResume() {
 // ============ VALIDATION GLOBALE ============
 async function validerTousLesJobs() {
   const jobsAValider = [];
-  
+
   document.querySelectorAll("#tbody-ocr tr").forEach(tr => {
     const cb = tr.querySelector(".check-job");
     if (!cb || !cb.checked) return;
-    
-    const idx = parseInt(cb.dataset.index);
-    const jobOrig = JOBS_EN_COURS[idx];
-    
+
+    const l = parseFloat(tr.querySelector(".inp-largeur").value) || 0;
+    const h = parseFloat(tr.querySelector(".inp-hauteur").value) || 0;
+    const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
+
+    const surfaceUnitaire = parseFloat(tr.querySelector(".inp-surface-unitaire").value) || 0;
+    const surfaceTotale = parseFloat(tr.querySelector(".inp-surface-totale").value) || 0;
+
+    let finalL = l;
+    let finalH = h;
+    let finalQ = q || 1;
+
+    // Si L/H = 0 mais surface totale > 0 → on met L=1, H=surface/Q
+    if (l === 0 && h === 0 && surfaceTotale > 0) {
+      finalL = 1;
+      if (finalQ > 0) {
+        finalH = surfaceTotale / finalQ;
+      } else {
+        finalH = surfaceTotale;
+        finalQ = 1;
+      }
+    }
+
     const job = {
       dateReception: tr.querySelector(".inp-date").value,
       client: tr.querySelector(".inp-client").value,
       jobRef: tr.querySelector(".inp-job").value,
-      largeur: parseFloat(tr.querySelector(".inp-largeur").value) || 0,
-      hauteur: parseFloat(tr.querySelector(".inp-hauteur").value) || 0,
-      quantite: parseInt(tr.querySelector(".inp-quantite").value) || 0,
+      largeur: finalL,
+      hauteur: finalH,
+      quantite: finalQ,
       tissu: tr.querySelector(".inp-tissu").value,
       commentaire: tr.querySelector(".inp-designation").value,
       designation: tr.querySelector(".inp-designation").value,
       utilisateur: "Admin"
     };
-    
-    // Si L/H = 0 mais surface > 0, on met une surface équivalente
-    // (ex: L=1, H=surface, Q=1 pour retrouver le même m²)
-    if (job.largeur === 0 && job.hauteur === 0) {
-      const surfaceManuelle = parseFloat(tr.querySelector(".inp-surface").value) || 0;
-      if (surfaceManuelle > 0) {
-        job.largeur = 1;
-        job.hauteur = surfaceManuelle;
-        if (job.quantite === 0) job.quantite = 1;
-      }
-    }
-    
+
     jobsAValider.push(job);
   });
-  
+
   if (jobsAValider.length === 0) {
     alert("Aucun job sélectionné.");
     return;
   }
-  
+
   afficherLoading(true, "💾 Enregistrement des jobs...");
-  
+
   try {
-    // Appeler une nouvelle route qui accepte un tableau
     const res = await apiPost("validateJobs", { jobs: jobsAValider });
     afficherLoading(false);
-    
+
     if (res.success) {
       document.getElementById("modale-ocr").style.display = "none";
       chargerDashboard();
@@ -744,7 +765,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") tenterConnexionAdmin();
   });
 
-  // Modale OCR : attacher les boutons UNE SEULE FOIS
   document.getElementById("btn-fermer-modale").addEventListener("click", () => {
     document.getElementById("modale-ocr").style.display = "none";
   });
