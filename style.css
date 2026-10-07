@@ -157,7 +157,7 @@ body {
   border-color: var(--bleu);
   box-shadow: 0 0 0 2px rgba(26,115,232,0.1);
 }
-.table-editable input.surface-input {
+.table-editable input.surface-manuel {
   background: #fffde7;
   font-weight: 600;
 }
@@ -165,6 +165,14 @@ body {
   background: #e8f5e9;
   color: #1b5e20;
   font-weight: 600;
+}
+.table-editable input[readonly] {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+.table-editable input[readonly]:focus {
+  box-shadow: none;
+  border-color: var(--gris-bord);
 }
 .table-editable tr.exclu {
   opacity: 0.4;
