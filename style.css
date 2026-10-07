@@ -15,7 +15,6 @@ body {
   background: var(--gris-clair); color: var(--texte); line-height: 1.5; padding-bottom: 40px;
 }
 
-/* EN-TÊTE */
 .header {
   background: var(--blanc); border-bottom: 1px solid var(--gris-bord);
   padding: 16px 24px; display: flex; justify-content: space-between;
@@ -30,7 +29,6 @@ body {
 }
 .header-right { display: flex; gap: 8px; align-items: center; }
 
-/* BOUTONS */
 .btn {
   border: none; border-radius: 6px; padding: 8px 16px; font-size: 14px;
   font-weight: 500; cursor: pointer; transition: background 0.15s, transform 0.05s;
@@ -58,7 +56,6 @@ body {
 .btn-statut-cloturer { background: #d1c4e9; color: #4a148c; }
 .btn-statut-suppr { background: #fce8e6; color: var(--rouge); }
 
-/* KPI */
 .kpi-section {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px; padding: 20px 24px;
@@ -76,7 +73,6 @@ body {
 .kpi-label { font-size: 12px; color: var(--gris); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500; }
 .kpi-valeur { font-size: 28px; font-weight: 700; margin-top: 4px; }
 
-/* ZONE DE DROP */
 .zone-scan { padding: 16px 24px; position: relative; }
 
 .drop-zone {
@@ -105,7 +101,6 @@ body {
 .drop-overlay-text { font-size: 24px; font-weight: 600; }
 @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-/* ONGLETS */
 .tabs {
   display: flex; gap: 4px; padding: 0 24px;
   border-bottom: 1px solid var(--gris-bord); background: var(--blanc);
@@ -121,7 +116,6 @@ body {
 .tab-content { display: none; padding: 20px 24px; }
 .tab-content.active { display: block; }
 
-/* TABLEAUX */
 .table-wrapper {
   background: var(--blanc); border-radius: 8px; overflow-x: auto;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -137,7 +131,6 @@ body {
 .table .vide { text-align: center; color: var(--gris); padding: 40px; font-style: italic; }
 .col-actions { min-width: 240px; text-align: center; }
 
-/* FORMULAIRE STOCK */
 .form-stock {
   background: var(--blanc); border-radius: 8px; padding: 20px;
   margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -160,7 +153,6 @@ body {
   box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
 }
 
-/* MODALES */
 .modale {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   display: flex; justify-content: center; align-items: center;
@@ -193,13 +185,11 @@ body {
   border-radius: 6px; font-size: 13px; margin-top: 12px;
 }
 
-/* MESSAGES */
 .erreur {
   background: #fce8e6; color: var(--rouge); padding: 12px 24px;
   margin: 12px 24px; border-radius: 6px; font-size: 14px;
 }
 
-/* LOADING AVEC PROGRESSION */
 .loading {
   position: fixed; inset: 0; background: rgba(255,255,255,0.95);
   display: flex; justify-content: center; align-items: center; z-index: 2000;
@@ -231,7 +221,6 @@ body {
 .progress-text { font-size: 13px; color: var(--gris); font-weight: 600; margin-bottom: 8px; }
 .loading-detail { font-size: 12px; color: var(--gris); font-style: italic; }
 
-/* RESPONSIVE */
 @media (max-width: 768px) {
   .header { padding: 12px 16px; }
   .header h1 { font-size: 18px; }
