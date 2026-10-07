@@ -415,11 +415,6 @@ function afficherModaleOCR(jobs) {
   document.getElementById("modale-ocr").style.display = "flex";
 }
 function attacherEvenementsTableauOCR() {
-  // Checkbox individuel
-  document.querySelectorAll(".check-job").forEach(cb => {
-    cb.addEventListener("change", mettreAJourResume);
-  });
-
   // Checkbox "tout"
   const checkAll = document.getElementById("check-all");
   checkAll.onclick = () => {
@@ -429,7 +424,56 @@ function attacherEvenementsTableauOCR() {
     mettreAJourResume();
   };
 
-  // Fonction de recalcul (utilisée pour L, H ET Q)
+  // Délégation d'événement sur le tbody
+  const tbody = document.getElementById("tbody-ocr");
+  
+  // Un seul écouteur sur le tbody pour TOUS les inputs
+  tbody.addEventListener("input", (e) => {
+    const target = e.target;
+    const tr = target.closest("tr");
+    if (!tr) return;
+    
+    // Cas 1 : checkbox
+    if (target.classList.contains("check-job")) {
+      mettreAJourResume();
+      return;
+    }
+    
+    // Cas 2 : largeur, hauteur, quantité → recalcul complet
+    if (target.classList.contains("inp-largeur") ||
+        target.classList.contains("inp-hauteur") ||
+        target.classList.contains("inp-quantite")) {
+      recalculerLigne(tr);
+      return;
+    }
+    
+    // Cas 3 : surface unitaire modifiée manuellement
+    if (target.classList.contains("inp-surface-unitaire")) {
+      const inpTotal = tr.querySelector(".inp-surface-totale");
+      const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
+      const surfUnit = parseFloat(target.value) || 0;
+      inpTotal.value = (surfUnit * q).toFixed(3);
+      mettreAJourResume();
+      return;
+    }
+    
+    // Cas 4 : surface totale modifiée manuellement
+    if (target.classList.contains("inp-surface-totale")) {
+      const inpUnit = tr.querySelector(".inp-surface-unitaire");
+      const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
+      const surfTotal = parseFloat(target.value) || 0;
+      if (q > 0) {
+        inpUnit.value = (surfTotal / q).toFixed(3);
+      }
+      mettreAJourResume();
+      return;
+    }
+    
+    // Cas 5 : autres inputs (client, job, date, tissu, designation) → juste mise à jour du résumé
+    mettreAJourResume();
+  });
+  
+  // Fonction de recalcul de ligne
   function recalculerLigne(tr) {
     const l = parseFloat(tr.querySelector(".inp-largeur").value) || 0;
     const h = parseFloat(tr.querySelector(".inp-hauteur").value) || 0;
@@ -452,7 +496,7 @@ function attacherEvenementsTableauOCR() {
       inpTotal.classList.remove("surface-manuel");
       inpTotal.classList.add("surface-auto");
     } else {
-      // Mode manuel : on recalcule la surface totale à partir de la surface unitaire (si elle existe)
+      // Mode manuel
       inpUnit.readOnly = false;
       inpTotal.readOnly = false;
       inpUnit.classList.remove("surface-auto");
@@ -460,7 +504,7 @@ function attacherEvenementsTableauOCR() {
       inpTotal.classList.remove("surface-auto");
       inpTotal.classList.add("surface-manuel");
 
-      // Si la surface unitaire était déjà saisie, on recalcule la surface totale
+      // Recalcul de la surface totale à partir de la surface unitaire
       const surfUnitActuelle = parseFloat(inpUnit.value) || 0;
       if (surfUnitActuelle > 0 && q > 0) {
         inpTotal.value = (surfUnitActuelle * q).toFixed(3);
@@ -469,48 +513,6 @@ function attacherEvenementsTableauOCR() {
 
     mettreAJourResume();
   }
-
-  // Attacher l'écouteur sur L, H et Qté
-  document.querySelectorAll(".inp-largeur, .inp-hauteur, .inp-quantite").forEach(inp => {
-    inp.addEventListener("input", (e) => {
-      const tr = e.target.closest("tr");
-      recalculerLigne(tr);
-    });
-    inp.addEventListener("change", (e) => {
-      const tr = e.target.closest("tr");
-      recalculerLigne(tr);
-    });
-  });
-
-  // Input surface unitaire (modification manuelle)
-  document.querySelectorAll(".inp-surface-unitaire").forEach(inp => {
-    inp.addEventListener("input", (e) => {
-      const tr = e.target.closest("tr");
-      const inpTotal = tr.querySelector(".inp-surface-totale");
-      const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
-
-      const surfUnit = parseFloat(e.target.value) || 0;
-      inpTotal.value = (surfUnit * q).toFixed(3);
-
-      mettreAJourResume();
-    });
-  });
-
-  // Input surface totale (modification manuelle)
-  document.querySelectorAll(".inp-surface-totale").forEach(inp => {
-    inp.addEventListener("input", (e) => {
-      const tr = e.target.closest("tr");
-      const inpUnit = tr.querySelector(".inp-surface-unitaire");
-      const q = parseInt(tr.querySelector(".inp-quantite").value) || 0;
-
-      const surfTotal = parseFloat(e.target.value) || 0;
-      if (q > 0) {
-        inpUnit.value = (surfTotal / q).toFixed(3);
-      }
-
-      mettreAJourResume();
-    });
-  });
 }
 
 function mettreAJourResume() {
