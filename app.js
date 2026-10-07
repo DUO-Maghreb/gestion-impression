@@ -10,7 +10,7 @@ const API_TOKEN = "gj7K2mP9xQ4vL8nR3wT6yH1bN5cF0dS2aE7uJ9iZ4kM8pX3qV6";
 let DATA = { jobs: [], stock: [], kpi: {}, parametres: { tissus: [], etats: [] } };
 let PROGRESSION_TIMER = null;
 
-// ============ AUTHENTIFICATION ADMIN ============
+// ============ AUTHENTIFICATION ============
 function estAdmin() { return sessionStorage.getItem("admin") === "ok"; }
 function getAdminPassword() { return sessionStorage.getItem("adminPwd") || ""; }
 function setAdmin(password) {
@@ -333,7 +333,6 @@ async function traiterFichier(file) {
 
 /**
  * Traite une liste de jobs un par un.
- * Affiche une modale pour chaque job, attend la validation, puis passe au suivant.
  */
 async function traiterJobsEnBoucle(jobs) {
   let nbValides = 0;
@@ -349,7 +348,7 @@ async function traiterJobsEnBoucle(jobs) {
       nbValides++;
     } else {
       nbAnnules++;
-      if (nbAnnules > 0 && i < jobs.length - 1) {
+      if (i < jobs.length - 1) {
         if (!confirm("Voulez-vous continuer avec les jobs restants ?")) {
           break;
         }
@@ -374,7 +373,7 @@ async function traiterJobsEnBoucle(jobs) {
  */
 function afficherModaleOCRAsync(data) {
   return new Promise((resolve) => {
-    // Remplir la modale
+    // ==== Remplir les champs ====
     document.getElementById("ocr-client").value = data.client || "";
     document.getElementById("ocr-job").value = data.jobRef || "";
     document.getElementById("ocr-date").value = data.dateReception || "";
@@ -383,7 +382,7 @@ function afficherModaleOCRAsync(data) {
     document.getElementById("ocr-quantite").value = data.quantite || 1;
     document.getElementById("ocr-commentaire").value = data.designation || "";
     
-    // Sélectionner le tissu
+    // ==== Tissu ====
     const selTissu = document.getElementById("ocr-tissu");
     const tissuExtrait = (data.tissu || "").toLowerCase();
     for (let i = 0; i < selTissu.options.length; i++) {
@@ -393,34 +392,36 @@ function afficherModaleOCRAsync(data) {
       }
     }
     
-    // Modifier le titre pour indiquer la progression
-    const titre = document.querySelector("#modale-ocr h2");
+    // ==== Titre et info ====
+    const titre = document.getElementById("ocr-titre");
+    const info = document.getElementById("ocr-info");
+    
     if (data._progression && data._progression.total > 1) {
       titre.textContent = "📄 Valider le job (" + data._progression.actuel + " / " + data._progression.total + ")";
+      info.textContent = "Vérifiez et corrigez les données de ce job. Après validation, vous passerez au suivant.";
     } else {
-      titre.textContent = "📄 Valider le BAT";
+      titre.textContent = "📄 Valider le job";
+      info.textContent = "Vérifiez et corrigez les données extraites avant de valider.";
     }
     
-    // Afficher la modale
+    // ==== Afficher la modale ====
     document.getElementById("modale-ocr").style.display = "flex";
     
-    // Boutons
-    const btnValider = document.getElementById("btn-valider-ocr");
-    const btnAnnuler = document.getElementById("btn-annuler-ocr");
-    const btnFermer = document.getElementById("btn-fermer-modale");
+    // ==== Boutons : on remplace par clone pour supprimer les anciens handlers ====
+    const btnValiderOld = document.getElementById("btn-valider-ocr");
+    const btnAnnulerOld = document.getElementById("btn-annuler-ocr");
+    const btnFermerOld = document.getElementById("btn-fermer-modale");
     
-    // Nettoyer les anciens handlers (au cas où)
-    btnValider.replaceWith(btnValider.cloneNode(true));
-    btnAnnuler.replaceWith(btnAnnuler.cloneNode(true));
-    btnFermer.replaceWith(btnFermer.cloneNode(true));
+    const btnValider = btnValiderOld.cloneNode(true);
+    const btnAnnuler = btnAnnulerOld.cloneNode(true);
+    const btnFermer = btnFermerOld.cloneNode(true);
     
-    // Récupérer les nouveaux éléments
-    const newBtnValider = document.getElementById("btn-valider-ocr");
-    const newBtnAnnuler = document.getElementById("btn-annuler-ocr");
-    const newBtnFermer = document.getElementById("btn-fermer-modale");
+    btnValiderOld.replaceWith(btnValider);
+    btnAnnulerOld.replaceWith(btnAnnuler);
+    btnFermerOld.replaceWith(btnFermer);
     
-    // Action Valider
-    newBtnValider.onclick = async () => {
+    // ==== Action Valider ====
+    btnValider.onclick = async () => {
       const payload = {
         dateReception: document.getElementById("ocr-date").value,
         client: document.getElementById("ocr-client").value,
@@ -445,13 +446,13 @@ function afficherModaleOCRAsync(data) {
       }
     };
     
-    // Action Annuler
-    newBtnAnnuler.onclick = () => {
+    // ==== Action Annuler ====
+    btnAnnuler.onclick = () => {
       document.getElementById("modale-ocr").style.display = "none";
       resolve(false);
     };
     
-    newBtnFermer.onclick = () => {
+    btnFermer.onclick = () => {
       document.getElementById("modale-ocr").style.display = "none";
       resolve(false);
     };
@@ -644,9 +645,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   initialiserDragDrop();
-
-  // ⚠️ NE PAS attacher d'événements directs sur la modale OCR
-  // Ils sont gérés dynamiquement dans afficherModaleOCRAsync
 
   document.getElementById("btn-ajouter-stock").addEventListener("click", ajouterStock);
   document.getElementById("stock-date").valueAsDate = new Date();
